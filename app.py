@@ -4,6 +4,7 @@ from PIL import ImageTk, Image
 from _thread import start_new_thread
 from concurrent.futures import ThreadPoolExecutor
 from os import mkdir
+from cryptography.fernet import Fernet
 
 from constants import *
 from utils import *
@@ -27,19 +28,24 @@ class App:
 
             username = terms[0]
             password = terms[1]
-            content = f"username={username}&password={password}&rusername={rusername}"
-
-            terms = []
-            terms.append(GET + " " + KEY + CRLF)
-            terms.append(CONTENT_LENGTH + str(len(content)) + CRLF)
-            terms.append(CRLF)
-            terms.append(content)
 
             ttp = TTPClient()
 
             if not ttp.connect():
                 messagebox.showerror("Error", "Unable to connect to the server!")
                 return False
+
+            key = ttp.handshake()
+            cipher = Fernet(key)
+
+            content = f"username={username}&password={password}&rusername={rusername}"
+            encrypted_content = cipher.encrypt(content.encode())
+
+            terms = []
+            terms.append(GET + " " + KEY + CRLF)
+            terms.append(CONTENT_LENGTH + str(len(encrypted_content)) + CRLF)
+            terms.append(CRLF)
+            terms.append(encrypted_content)
 
             ttp.send(terms)
             terms, data_messege = ttp.receive()
@@ -49,6 +55,9 @@ class App:
                 return False
 
             elif terms[0].find(f"200 {OK}") != -1:
+                data_messege = cipher.decrypt(data_messege)
+                data_messege = data_messege.decode()
+
                 parameters = data_messege.split('&')
                 e = parameters[0][2:]
                 n = parameters[1][2:]
@@ -146,19 +155,24 @@ class App:
 
             username = terms[0]
             password = terms[1]
-            content = f"username={username}&password={password}&rusername={rusername}"
-
-            terms = []
-            terms.append(GET + " " + ADDRESS + CRLF)
-            terms.append(CONTENT_LENGTH + str(len(content)) + CRLF)
-            terms.append(CRLF)
-            terms.append(content)
 
             ttp = TTPClient()
 
             if not ttp.connect():
                 messagebox.showerror("Error", "Unable to connect to the server!")
                 return False
+
+            key = ttp.handshake()
+            cipher = Fernet(key)
+
+            content = f"username={username}&password={password}&rusername={rusername}"
+            encrypted_content = cipher.encrypt(content.encode())
+
+            terms = []
+            terms.append(GET + " " + ADDRESS + CRLF)
+            terms.append(CONTENT_LENGTH + str(len(encrypted_content)) + CRLF)
+            terms.append(CRLF)
+            terms.append(encrypted_content)
 
             ttp.send(terms)
             terms, data_messege = ttp.receive()
@@ -168,6 +182,9 @@ class App:
                 return False
 
             elif terms[0].find(f"200 {OK}") != -1:
+                data_messege = cipher.decrypt(data_messege)
+                data_messege = data_messege.decode()
+
                 parameters = data_messege.split('&')
                 _ip = parameters[0][3:]
                 _port = parameters[1][5:]
@@ -256,19 +273,24 @@ class App:
 
             username = terms[0]
             password = terms[1]
-            content = f"username={username}&password={password}&port={port}"
-
-            terms = []
-            terms.append(SET + CRLF)
-            terms.append(CONTENT_LENGTH + str(len(content)) + CRLF)
-            terms.append(CRLF)
-            terms.append(content)
-
+            
             ttp = TTPClient()
 
             if not ttp.connect():
                 messagebox.showerror("Error", "Unable to connect to the server!")
                 return
+
+            key = ttp.handshake()
+            cipher = Fernet(key)
+
+            content = f"username={username}&password={password}&port={port}"
+            encrypted_content = cipher.encrypt(content.encode())
+
+            terms = []
+            terms.append(SET + CRLF)
+            terms.append(CONTENT_LENGTH + str(len(encrypted_content)) + CRLF)
+            terms.append(CRLF)
+            terms.append(encrypted_content)
 
             ttp.send(terms)
             terms, data_messege = ttp.receive()
@@ -335,19 +357,24 @@ class App:
 
             username = terms[0]
             password = terms[1]
-            content = f"username={username}&password={password}"
-
-            terms = []
-            terms.append(operation + CRLF)
-            terms.append(CONTENT_LENGTH + str(len(content)) + CRLF)
-            terms.append(CRLF)
-            terms.append(content)
 
             ttp = TTPClient()
 
             if not ttp.connect():
                 messagebox.showerror("Error", "Unable to connect to the server!")
                 return
+
+            key = ttp.handshake()
+            cipher = Fernet(key)
+            
+            content = f"username={username}&password={password}"
+            encrypted_content = cipher.encrypt(content.encode())
+
+            terms = []
+            terms.append(operation + CRLF)
+            terms.append(CONTENT_LENGTH + str(len(encrypted_content)) + CRLF)
+            terms.append(CRLF)
+            terms.append(encrypted_content)
 
             ttp.send(terms)
             terms, data_messege = ttp.receive()
@@ -357,6 +384,9 @@ class App:
                 return
 
             elif terms[0].find(f"200 {OK}") != -1:
+                data_messege = cipher.decrypt(data_messege)
+                data_messege = data_messege.decode()
+
                 priv_key = data_messege.split('&')
                 d = priv_key[0][2:]
                 n = priv_key[1][2:]
@@ -420,19 +450,23 @@ class App:
                 messagebox.showerror("Error", "username can contain numbers and letters only!")
                 return
 
-            hashed_password = getHash(password_entry.get())
-            content = f"username={user_entry.get()}&password={hashed_password}"
-
-            terms = []
-            terms.append(REGISTER + CRLF)
-            terms.append(CONTENT_LENGTH + str(len(content)) + CRLF)
-            terms.append(CRLF)
-            terms.append(content)
-
             ttp = TTPClient()
             if not ttp.connect():
                 messagebox.showerror("Error", "Unable to connect to the server!")
                 return
+
+            key = ttp.handshake()
+            cipher = Fernet(key)
+
+            hashed_password = getHash(password_entry.get())
+            content = f"username={user_entry.get()}&password={hashed_password}"
+            encrypted_content = cipher.encrypt(content.encode())
+
+            terms = []
+            terms.append(REGISTER + CRLF)
+            terms.append(CONTENT_LENGTH + str(len(encrypted_content)) + CRLF)
+            terms.append(CRLF)
+            terms.append(encrypted_content)
 
             ttp.send(terms)
             terms, data_messege = ttp.receive()
@@ -442,6 +476,8 @@ class App:
                 return
                 
             elif terms[0].find(f"200 {OK}") != -1:
+                data_messege = cipher.decrypt(data_messege)
+                data_messege = data_messege.decode()
                 priv_key = data_messege.split('&')
                 d = priv_key[0][2:]
                 n = priv_key[1][2:]
@@ -501,19 +537,23 @@ class App:
                 messagebox.showerror("Error", "username can contain numbers and letters only!")
                 return
 
+            ttp = TTPClient()
+            if not ttp.connect():
+                messagebox.showerror("Error", "Unable to connect to the server!")
+                return
+
+            key = ttp.handshake()
+            cipher = Fernet(key)
+
             hashed_password = getHash(password_entry.get())
             content = f"username={user_entry.get()}&password={hashed_password}"
+            encrypted_content = cipher.encrypt(content.encode())
 
             terms = []
             terms.append(LOGIN + CRLF)
             terms.append(CONTENT_LENGTH + str(len(content)) + CRLF)
             terms.append(CRLF)
-            terms.append(content)
-
-            ttp = TTPClient()
-            if not ttp.connect():
-                messagebox.showerror("Error", "Unable to connect to the server!")
-                return
+            terms.append(encrypted_content)
 
             ttp.send(terms)
             terms, data_messege = ttp.receive()
@@ -523,6 +563,8 @@ class App:
                 return
                 
             elif terms[0].find(f"200 {OK}") != -1:
+                data_messege = cipher.decrypt(data_messege)
+                data_messege = data_messege.decode()
                 priv_key = data_messege.split('&')
                 d = priv_key[0][2:]
                 n = priv_key[1][2:]

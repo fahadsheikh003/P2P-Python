@@ -5,6 +5,7 @@ from _thread import start_new_thread
 from concurrent.futures import ThreadPoolExecutor
 from os import mkdir
 from cryptography.fernet import Fernet
+from multiprocessing import Process
 
 from constants import *
 from utils import *
@@ -22,6 +23,15 @@ class App:
     def chatbox(self, sock: socket, rusername):
         box_index = 1
         
+        def on_closing():
+            try:
+                sock.shutdown(SHUT_RDWR)
+                sock.close()
+            except: pass
+
+            try: app.destroy()
+            except: pass
+
         def fetch_key() -> bool:
             with open(f"{KEY_DIRECTORY}/{PRIAVTE_KEY}", 'r') as f:
                 terms = f.read().split('\n')
@@ -65,7 +75,7 @@ class App:
                 with open(f"{KEY_DIRECTORY}/{PUBLIC_KEY}{rusername}", 'w') as f:
                     f.write(f"{e}\n{n}")
 
-                messagebox.showinfo("Success", f"User: {rusername} fetched Successfully")
+                # messagebox.showinfo("Success", f"Public Key of User: {rusername} fetched Successfully")
 
             elif terms[0].find(f"401 {BAD_REQUEST}") != -1:
                 messagebox.showerror("Error", f"Unable to find {rusername}!")
@@ -102,12 +112,14 @@ class App:
                     box_index += 1
 
                 except:
-                    messagebox.showerror("Error", "Unable to read message..")
-                    
-        if not fetch_key():
-            return
-
-        start_new_thread(receive_messages, ())
+                    # messagebox.showerror("Error", "Unable to read message..")
+                    break
+            messagebox.showerror("Error", "An error occured during communication..\nClosing Connection..")
+            
+            try:
+                app.destroy()
+            except:
+                pass
 
         def send_message():
             nonlocal box_index
@@ -130,6 +142,11 @@ class App:
 
             sock.send(encrypted_message_in_bytes)
 
+        if not fetch_key():
+            return
+
+        start_new_thread(receive_messages, ())
+
         app = Tk()
         app.title("Chat")
         app.geometry('400x500')
@@ -144,6 +161,7 @@ class App:
         send_button = Button(app, text="Send", bg="#072D57", fg="white", font=('Verdana', 10,'normal','underline'), height=4, width=8, command=send_message)
         send_button.grid(row=1, column=5, sticky='w')
 
+        app.protocol("WM_DELETE_WINDOW", on_closing)
         app.mainloop()
 
     def menu_gui(self):
@@ -192,7 +210,7 @@ class App:
                 with open(f"{KEY_DIRECTORY}/{ADDRESS_FILE}{rusername}", 'w') as f:
                     f.write(f"{_ip}\n{_port}")
 
-                messagebox.showinfo("Success", f"User: {rusername} fetched Successfully")
+                # messagebox.showinfo("Success", f"Address of User: {rusername} fetched Successfully")
 
             elif terms[0].find(f"403 {BAD_REQUEST}") != -1:
                 messagebox.showerror("Error", f"{rusername} doesn't have any server up!")
@@ -242,7 +260,8 @@ class App:
 
                 sock.send(f"{username}<EOF>".encode())
                 
-                start_new_thread(self.chatbox, (sock, rusername))
+                # start_new_thread(self.chatbox, (sock, rusername))
+                Process(target=self.chatbox, args=(sock, rusername)).start()
 
         def process_request(client_socket: socket, client_address: tuple):
             username = client_socket.recv(BUFFER_SIZE)
@@ -252,7 +271,8 @@ class App:
             username = username.decode()[:-5]
 
             if messagebox.askyesno("Connection Request", f"Request From {username} {client_address[0]}:{client_address[1]}"):
-                start_new_thread(self.chatbox, (client_socket, username))
+                # start_new_thread(self.chatbox, (client_socket, username))
+                Process(target=self.chatbox, args=(client_socket, username)).start()
             else:
                 client_socket.close()
  
@@ -323,6 +343,7 @@ class App:
                     break
             
             try:
+                server_socket.shutdown(SHUT_RDWR)
                 server_socket.close()
             except:
                 pass
@@ -345,6 +366,7 @@ class App:
 
             elif start_button['text'] == 'Stop':
                 try:
+                    server_socket.shutdown(SHUT_RDWR)
                     server_socket.close()
                 except:
                     pass
@@ -617,5 +639,6 @@ class App:
 
         app.mainloop()
 
-app = App()
-app.login_gui()
+if __name__ == "__main__":
+    app = App()
+    app.login_gui()
